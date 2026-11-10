@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://login.microsoftonline.com https://graph.microsoft.com; frame-src blob:; img-src data: blob:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<title>MailPDF</title>
+<style>
+:root{--bg:#f5f4f0;--panel:#fff;--ink:#1c1c1a;--muted:#6d6b65;--line:#e5e2da;--accent:#0f6cbd;--accent-ink:#fff;--hover:#f0eee8;--sel:#e6f0fa;--err:#b91c1c;--ok:#15803d}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--panel:#1d1d1b;--ink:#ecebe6;--muted:#9b998f;--line:#2e2d2a;--accent:#4aa3ff;--accent-ink:#04182b;--hover:#262522;--sel:#16283a;--err:#f87171;--ok:#4ade80}}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+a{color:inherit}
+button,.btn{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 12px;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+button:hover,.btn:hover{background:var(--hover)}
+button:disabled{opacity:.55;cursor:default}
+.primary{background:var(--accent)!important;color:var(--accent-ink)!important;border-color:var(--accent)!important;font-weight:600}
+.primary:hover{filter:brightness(1.06)}
+.big{font-size:15px;padding:10px 18px}
+select,input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 9px}
+.muted{color:var(--muted)}.small{font-size:12.5px}.err{color:var(--err)}.ok{color:var(--ok)}
+code{background:var(--hover);padding:3px 7px;border-radius:5px;font-size:12.5px;word-break:break-all}
+.spin{width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite;flex:none;display:inline-block;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* pagine di benvenuto / configurazione */
+.center{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px}
+.card2{width:min(640px,100%);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px}
+.card2 h1{margin:0 0 6px;font-size:24px;letter-spacing:-.02em}.card2 h1 span{color:var(--accent)}
+.card2 h2{font-size:17px;margin:22px 0 6px}
+ol.steps{padding-left:22px;margin:8px 0}ol.steps li{margin:10px 0}
+.copy{display:flex;gap:6px;align-items:center;margin-top:6px}.copy code{flex:1;min-width:0}
+.formrow{display:grid;gap:4px;margin:12px 0;font-weight:600;font-size:13px}.formrow input{font-weight:400;font-size:14px;padding:9px 11px}
+.msbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px 18px;font-size:16px;margin:18px 0 8px}
+.mslogo{display:grid;grid-template-columns:9px 9px;gap:2px}.mslogo i{width:9px;height:9px;display:block}
+.note{background:var(--hover);border-radius:10px;padding:12px 14px;font-size:13px;margin-top:14px}
+
+/* applicazione */
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);height:56px}
+.logo{font-weight:750;font-size:18px;letter-spacing:-.02em;white-space:nowrap}.logo span{color:var(--accent)}
+#search{flex:1;max-width:480px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font:inherit;min-width:0}
+.spacer{flex:1}
+#sync{color:var(--muted);font-size:12.5px;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.layout{display:grid;grid-template-columns:240px 1fr 400px;height:calc(100vh - 56px)}
+aside{border-right:1px solid var(--line);overflow:auto;padding:12px 8px;background:var(--panel)}
+aside h4{margin:14px 10px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.cat{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:7px;cursor:pointer;user-select:none}
+.cat:hover{background:var(--hover)}.cat.on{background:var(--sel);font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.cnt{margin-left:auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.who{padding:8px 10px;font-size:12.5px;color:var(--muted)}
+main{overflow:auto;min-width:0}
+.toolbar{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2;flex-wrap:wrap}
+.tabs{display:flex;background:var(--hover);padding:3px;border-radius:9px}
+.tabs button{border:0;background:transparent;padding:5px 14px;border-radius:7px}
+.tabs button.on{background:var(--panel);box-shadow:0 1px 2px rgba(0,0,0,.08);font-weight:600}
+.chk{display:flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer}
+#catSelect{display:none}
+.row{display:grid;grid-template-columns:1fr auto;gap:1px 12px;padding:11px 16px;border-bottom:1px solid var(--line);cursor:pointer}
+.row:hover{background:var(--hover)}.row.on{background:var(--sel)}
+.from{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.date{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.subj{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.snip{grid-column:1/-1;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip{font-size:11.5px;padding:1px 8px;border-radius:99px;border:1px solid var(--c);color:var(--c);white-space:nowrap}
+.clip{font-size:12px;color:var(--accent);font-weight:600;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;padding:16px}
+.card{display:flex;gap:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--panel);cursor:pointer;min-width:0}
+.card:hover{border-color:var(--accent)}
+.pdficon{flex:none;width:42px;height:52px;border-radius:6px;background:var(--sel);color:var(--accent);font-weight:800;font-size:11px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:7px}
+.pdficon.sm{width:32px;height:40px;font-size:9px;padding-bottom:5px}
+.cbody{min-width:0;flex:1}
+.fname{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cact{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.cact button{padding:3px 9px;font-size:12.5px}
+#detail{border-left:1px solid var(--line);overflow:auto;background:var(--panel);padding:20px;position:relative}
+#detail h2{margin:0 28px 6px 0;font-size:18px;line-height:1.3}
+#detail h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 8px}
+.close{position:absolute;top:12px;right:12px;border:0;background:transparent;font-size:16px;padding:4px 8px}
+.field{display:flex;align-items:center;gap:10px;margin-top:14px}
+.pdfline{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.grow{flex:1;min-width:0}
+.snipfull{white-space:pre-wrap;color:var(--muted);font-size:13px}
+.empty{padding:60px 24px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:6px}
+.more{display:block;margin:16px auto}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;z-index:20}
+#modal.open{display:flex}
+.mbox{background:var(--panel);border-radius:14px;padding:24px;width:min(860px,100%);position:relative;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.mbox h2{margin:0 0 4px}
+.mbox section{border-top:1px solid var(--line);padding-top:6px;margin-top:18px}
+table.rules{width:100%;border-collapse:collapse;font-size:13px}
+table.rules th{text-align:left;font-size:11.5px;color:var(--muted);font-weight:600;padding:6px;border-bottom:1px solid var(--line)}
+table.rules td{padding:4px;border-bottom:1px solid var(--line)}
+table.rules input,table.rules select{width:100%;font-size:12.5px;padding:5px 7px}
+table.rules td:last-child{width:36px}
+#viewer{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:25;padding:24px}
+#viewer.open{display:flex;flex-direction:column}
+#viewer .vbar{display:flex;gap:10px;align-items:center;background:var(--panel);padding:10px 14px;border-radius:12px 12px 0 0}
+#viewer iframe{flex:1;border:0;background:#fff;border-radius:0 0 12px 12px;width:100%}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;display:none;z-index:30;max-width:90vw}
+#toast.err{background:var(--err);color:#fff}
+@media(max-width:1100px){.layout{grid-template-columns:220px 1fr}#detail{position:fixed;right:0;top:56px;bottom:0;width:min(440px,100%);display:none;box-shadow:-10px 0 40px rgba(0,0,0,.15);z-index:10}#detail.open{display:block}}
+@media(max-width:700px){.layout{grid-template-columns:1fr}aside{display:none}#catSelect{display:block}#sync{display:none}header{gap:8px;padding:10px}.lbl{display:none}.logo{font-size:16px}#viewer{padding:0}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal"></div>
+<div id="viewer"></div>
+<div id="toast"></div>
+<script>
+"use strict";
+/* ============================================================
+   MailPDF per Outlook / Microsoft 365
+   Tutto avviene nel browser: il login è quello ufficiale Microsoft,
+   le email si leggono direttamente da Microsoft e i PDF si aprono
+   solo quando li chiedi. Nessun server, nessuna copia nel cloud.
+   ============================================================ */
+
+var SCOPES = "openid profile offline_access User.Read Mail.Read";
+var GRAPH = "https://graph.microsoft.com/v1.0";
+var ALTRO = "Altro";
+var REGOLE_PREDEFINITE = [
+  ["Fatture e ricevute","intestazione","fattura, fatture, fattura elettronica, invoice, facture, factuur, ricevuta, ricevute, receipt, reçu, quittance, nota di credito, credit note, note de crédit, proforma, rechnung, offerta, preventivo, devis, quote"],
+  ["Ordini e acquisti","intestazione","ordine, ordini, order, purchase order, bon de commande, commande, bestelling, conferma d'ordine, order confirmation, acquisto, purchase"],
+  ["Contratti","intestazione","contratto, contratti, contract, contrat, accordo, agreement, nda, firma, signature, docusign, adobe sign"],
+  ["Banca e pagamenti","intestazione","banca, bank, banque, estratto conto, extrait de compte, bonifico, virement, pagamento, payment, paiement, remittance, sollecito, reminder, rappel, iban"],
+  ["Personale e HR","intestazione","busta paga, cedolino, payslip, fiche de paie, fiche de salaire, hr, risorse umane, ressources humaines, ferie, congé, malattia, nota spese, expense, note de frais"],
+  ["Spedizioni","intestazione","spedizione, shipping, shipped, livraison, expédition, consegna, delivery, tracking, ddt, bolla, packing list, dhl, ups, gls, bpost, postnl, fedex, tnt, dpd"],
+  ["Riunioni","oggetto","riunione, meeting, réunion, invito, invitation, verbale, minutes, agenda, ordre du jour, teams"],
+  ["Viaggi","intestazione","volo, flight, vol, carta d'imbarco, boarding pass, prenotazione, booking, réservation, hotel, hôtel, treno, train, sncb, trenitalia"],
+  ["Newsletter e promozioni","testo","unsubscribe, disiscriviti, annulla iscrizione, se désinscrire, désinscription, désabonner, uitschrijven, newsletter"]
+];
+var CAMPI = {intestazione:"Oggetto, mittente o nome PDF",oggetto:"Solo oggetto",mittente:"Solo mittente",allegato:"Solo nome del PDF",testo:"Anteprima dell'email",tutto:"Ovunque"};
+var PERIODI = [[1,"Ultimo mese"],[3,"Ultimi 3 mesi"],[12,"Ultimo anno"],[36,"Ultimi 3 anni"],[0,"Tutte"]];
+
+/* ---------------- utilità ---------------- */
+var $=function(s){return document.querySelector(s);};
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function lsGet(k,d){try{var v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}
+function lsDel(k){try{localStorage.removeItem(k);}catch(e){}}
+function ssGet(k){try{return sessionStorage.getItem(k);}catch(e){return null;}}
+function ssSet(k,v){try{sessionStorage.setItem(k,v);}catch(e){}}
+function ssDel(k){try{sessionStorage.removeItem(k);}catch(e){}}
+function toast(msg,err){var t=$("#toast");t.textContent=msg;t.className=err?"err":"";t.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(function(){t.style.display="none";},err?8000:3500);}
+function color(n){var h=7,s=String(n);for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return "hsl("+h+" 58% 46%)";}
+function chip(c){return '<span class="chip" style="--c:'+color(c)+'">'+esc(c)+'</span>';}
+function fmtSize(b){b=+b||0;if(b<1024)return b+" B";if(b<1048576)return Math.round(b/1024)+" KB";return (b/1048576).toFixed(1)+" MB";}
+function pad(n){return String(n).padStart(2,"0");}
+function dayKey(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function fmtDate(iso){if(!iso)return "";var d=new Date(iso);if(dayKey(d)===dayKey(new Date()))return pad(d.getHours())+":"+pad(d.getMinutes());return pad(d.getDate())+"/"+pad(d.getMonth()+1)+"/"+d.getFullYear();}
+function fmtFull(iso){var d=new Date(iso);return pad(d.getDate())+"/"+pad(d.getMonth()+1)+"/"+d.getFullYear()+" "+pad(d.getHours())+":"+pad(d.getMinutes());}
+function b64url(bytes){var s="";for(var i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
+function randStr(n){var a=new Uint8Array(n);crypto.getRandomValues(a);return b64url(a);}
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+function redirectUri(){return location.origin+location.pathname;}
+function isPdf(a){return a&&(a.contentType==="application/pdf"||/\.pdf$/i.test(a.name||""))&&a["@odata.type"]!=="#microsoft.graph.itemAttachment"&&a["@odata.type"]!=="#microsoft.graph.referenceAttachment";}
+
+/* ---------------- configurazione (ID dell'app Microsoft) ---------------- */
+function getCfg(){return lsGet("mp_cfg",null);}
+function readHashCfg(){
+  var h=new URLSearchParams(location.hash.replace(/^#/,""));
+  var c=h.get("client"),t=h.get("tenant");
+  if(c&&/^[0-9a-f-]{36}$/i.test(c)){
+    lsSet("mp_cfg",{clientId:c,tenantId:(t&&/^[0-9a-z.-]{3,}$/i.test(t))?t:"organizations"});
+    history.replaceState(null,"",location.pathname+location.search);
+  }
+}
+
+/* ---------------- login Microsoft (OAuth 2.0 con PKCE, solo browser) ---------------- */
+function authBase(){var c=getCfg();return "https://login.microsoftonline.com/"+encodeURIComponent(c.tenantId||"organizations")+"/oauth2/v2.0";}
+async function login(scelta){
+  var c=getCfg();
+  var verifier=randStr(48),state=randStr(16);
+  var dig=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(verifier));
+  ssSet("mp_pkce",JSON.stringify({v:verifier,s:state}));
+  var p=new URLSearchParams({client_id:c.clientId,response_type:"code",redirect_uri:redirectUri(),response_mode:"query",
+    scope:SCOPES,state:state,code_challenge:b64url(new Uint8Array(dig)),code_challenge_method:"S256"});
+  if(scelta)p.set("prompt","select_account");
+  var hint=lsGet("mp_hint","");if(hint&&!scelta)p.set("login_hint",hint);
+  location.assign(authBase()+"/authorize?"+p.toString());
+}
+async function tokenRequest(params){
+  var c=getCfg();params.client_id=c.clientId;params.scope=SCOPES;
+  var r=await fetch(authBase()+"/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams(params).toString()});
+  var j={};try{j=await r.json();}catch(e){}
+  if(!r.ok||!j.access_token){var e=new Error(j.error_description||j.error||("Errore "+r.status));e.code=j.error||"";throw e;}
+  var tok={at:j.access_token,rt:j.refresh_token||"",exp:Date.now()+((j.expires_in||3600)-120)*1000};
+  ssSet("mp_tok",JSON.stringify(tok));return tok;
+}
+async function handleRedirect(){
+  var q=new URLSearchParams(location.search);
+  if(!q.has("code")&&!q.has("error"))return null;
+  history.replaceState(null,"",location.pathname);
+  if(q.has("error"))return {error:q.get("error"),desc:q.get("error_description")||""};
+  var saved={};try{saved=JSON.parse(ssGet("mp_pkce")||"{}");}catch(e){}
+  ssDel("mp_pkce");
+  if(!saved.v||saved.s!==q.get("state"))return {error:"state",desc:"La risposta di Microsoft non corrisponde a questo accesso. Riprova."};
+  try{await tokenRequest({grant_type:"authorization_code",code:q.get("code"),redirect_uri:redirectUri(),code_verifier:saved.v});return {ok:true};}
+  catch(e){return {error:e.code||"token",desc:e.message};}
+}
+var refreshing=null;
+async function getToken(force){
+  var t=getTok();
+  if(!t)throw needLogin();
+  if(!force&&t.exp>Date.now())return t.at;
+  if(!t.rt)throw needLogin();
+  if(!refreshing)refreshing=tokenRequest({grant_type:"refresh_token",refresh_token:t.rt}).finally(function(){refreshing=null;});
+  try{return (await refreshing).at;}catch(e){ssDel("mp_tok");throw needLogin();}
+}
+function getTok(){try{return JSON.parse(ssGet("mp_tok")||"null");}catch(e){return null;}}
+function needLogin(){var e=new Error("Serve un nuovo accesso");e.login=true;return e;}
+function logout(){
+  ssDel("mp_tok");lsDel("mp_cache");lsDel("mp_hint");
+  var c=getCfg();
+  location.assign("https://login.microsoftonline.com/"+encodeURIComponent((c&&c.tenantId)||"organizations")+"/oauth2/v2.0/logout?post_logout_redirect_uri="+encodeURIComponent(redirectUri()));
+}
+function friendlyAuthError(code,desc){
+  var d=String(desc||"");
+  if(/AADSTS65001|AADSTS90094|AADSTS90095|consent_required|admin/i.test(code+" "+d))
+    return "La tua azienda richiede che l'amministratore IT approvi MailPDF prima che tu possa usarlo. Chiedi al reparto IT di concedere il permesso “Mail.Read” all'app MailPDF.";
+  if(/AADSTS50011|redirect/i.test(d))return "L'indirizzo di questo sito non corrisponde a quello registrato su Microsoft. Nella registrazione dell'app, alla voce Autenticazione, aggiungi come “Applicazione a pagina singola” l'indirizzo: "+redirectUri();
+  if(/AADSTS700016|AADSTS90002|not found in the directory|tenant/i.test(d))return "L'ID applicazione o l'ID directory non sono corretti. Controllali nelle impostazioni (Cambia app Microsoft).";
+  if(/AADSTS9002326|cross-origin|Single-Page/i.test(d))return "Nella registrazione Microsoft l'indirizzo è stato aggiunto come “Web” invece che come “Applicazione a pagina singola (SPA)”. Correggilo in Autenticazione.";
+  if(/access_denied|AADSTS65004|declined/i.test(code+" "+d))return "Accesso annullato. Per usare MailPDF devi accettare la richiesta di Microsoft.";
+  return d.split(/\r?\n/)[0]||"Accesso non riuscito.";
+}
+
+/* ---------------- Microsoft Graph ---------------- */
+async function graph(url,opt){
+  opt=opt||{};
+  for(var tentativo=0;tentativo<4;tentativo++){
+    var tok=await getToken(tentativo>0&&opt._401);
+    var r=await fetch(url.indexOf("http")===0?url:GRAPH+url,{method:opt.method||"GET",headers:Object.assign({Authorization:"Bearer "+tok,Prefer:'outlook.body-content-type="text"'},opt.headers||{}),body:opt.body});
+    if(r.status===401&&!opt._401){opt._401=true;continue;}
+    if(r.status===429||r.status===503||r.status===504){var ra=+(r.headers.get("Retry-After")||0);await sleep(Math.min(30,ra||2*(tentativo+1))*1000);continue;}
+    if(!r.ok){var m="";try{m=(await r.json()).error.message;}catch(e){}throw new Error("Outlook: "+(m||("errore "+r.status)));}
+    return opt.blob?r.blob():r.json();
+  }
+  throw new Error("Outlook non risponde, riprova tra poco.");
+}
+
+/* ---------------- regole e categorie ---------------- */
+function getRules(){return lsGet("mp_rules",null)||REGOLE_PREDEFINITE.map(function(r){return {cat:r[0],campo:r[1],parole:r[2]};});}
+function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");}
+function compileRules(rules){
+  var B="[\\p{L}\\p{N}_]";
+  return rules.map(function(r){
+    var kws=String(r.parole||"").split(",").map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
+    if(!kws.length||!r.cat)return null;
+    return {cat:r.cat,campo:CAMPI[r.campo]?r.campo:"intestazione",re:new RegExp(kws.map(function(k){return "(?<!"+B+")"+escRe(k)+"(?!"+B+")";}).join("|"),"iu")};
+  }).filter(Boolean);
+}
+var COMPILED=null;
+function categorize(e){
+  var man=lsGet("mp_manual",{});if(man[e.id])return man[e.id];
+  if(!COMPILED)COMPILED=compileRules(getRules());
+  var t={oggetto:e.s||"",mittente:(e.fn||"")+" "+(e.fa||""),allegato:(e.pdf||[]).map(function(p){return p.n;}).join(" "),testo:e.p||""};
+  t.intestazione=t.oggetto+"\n"+t.mittente+"\n"+t.allegato;t.tutto=t.intestazione+"\n"+t.testo;
+  for(var i=0;i<COMPILED.length;i++)if(COMPILED[i].re.test(t[COMPILED[i].campo]))return COMPILED[i].cat;
+  return ALTRO;
+}
+function categoryNames(){
+  var n=[];getRules().forEach(function(r){if(r.cat&&n.indexOf(r.cat)<0)n.push(r.cat);});
+  var man=lsGet("mp_manual",{});Object.keys(man).forEach(function(k){if(n.indexOf(man[k])<0&&man[k]!==ALTRO)n.push(man[k]);});
+  n.push(ALTRO);return n;
+}
+
+/* ---------------- archivio delle email (solo l'elenco, mai i PDF) ---------------- */
+var S={me:null,emails:[],byId:{},cat:"",tab:"email",q:"",onlyPdf:false,sel:null,shown:100,busy:false,progress:"",excluded:{}};
+function settings(){return Object.assign({mesi:12,ricorda:false},lsGet("mp_set",{}));}
+function saveCache(){
+  if(!settings().ricorda){lsDel("mp_cache");return;}
+  var ok=lsSet("mp_cache",{u:S.me&&S.me.id,list:S.emails});
+  if(!ok){var half={u:S.me&&S.me.id,list:S.emails.slice(0,Math.floor(S.emails.length/2))};lsSet("mp_cache",half);}
+}
+function loadCache(){var c=lsGet("mp_cache",null);if(c&&S.me&&c.u===S.me.id&&Array.isArray(c.list)){S.emails=c.list;S.byId={};S.emails.forEach(function(e){S.byId[e.id]=e;});}}
+function addEmail(m){
+  if(S.excluded[m.parentFolderId])return null;
+  var from=(m.from&&m.from.emailAddress)||{};
+  if(S.me&&from.address&&String(from.address).toLowerCase()===S.me.mail)return null;
+  var old=S.byId[m.id];
+  var e={id:m.id,s:m.subject||"(senza oggetto)",fn:from.name||"",fa:from.address||"",d:m.receivedDateTime,p:String(m.bodyPreview||"").replace(/\s+/g," ").trim().slice(0,200),w:m.webLink||"",a:!!m.hasAttachments,pdf:old?old.pdf:(m.hasAttachments?null:[])};
+  if(old){Object.assign(old,e);return old;}
+  S.byId[e.id]=e;S.emails.push(e);return e;
+}
+async function loadExcludedFolders(){
+  S.excluded={};
+  var names=["sentitems","deleteditems","junkemail","drafts","outbox"];
+  await Promise.all(names.map(function(n){return graph("/me/mailFolders/"+n+"?$select=id").then(function(f){S.excluded[f.id]=true;}).catch(function(){});}));
+}
+async function fetchEmails(full){
+  var mesi=settings().mesi,since=null;
+  if(!full&&S.emails.length){var newest=S.emails.reduce(function(a,e){return e.d>a?e.d:a;},"");since=new Date(new Date(newest).getTime()-2*86400000);}
+  else if(mesi>0){since=new Date();since.setMonth(since.getMonth()-mesi);}
+  if(full){S.emails=[];S.byId={};}
+  var url="/me/messages?$top=100&$select=id,subject,from,receivedDateTime,hasAttachments,bodyPreview,webLink,parentFolderId"+
+    (since?"&$filter="+encodeURIComponent("receivedDateTime ge "+since.toISOString()):"")+"&$orderby="+encodeURIComponent("receivedDateTime desc");
+  var n=0,nuove=0;
+  while(url){
+    var page=await graph(url);
+    (page.value||[]).forEach(function(m){var had=!!S.byId[m.id];if(addEmail(m)&&!had)nuove++;n++;});
+    S.progress="Carico le email… "+n;renderSync();
+    if(n%300<100){S.emails.sort(function(a,b){return a.d<b.d?1:-1;});renderList();renderSidebar();}
+    url=page["@odata.nextLink"]||"";
+  }
+  S.emails.sort(function(a,b){return a.d<b.d?1:-1;});
+  return nuove;
+}
+async function fetchAttachmentNames(){
+  var todo=S.emails.filter(function(e){return e.a&&e.pdf===null;});
+  for(var i=0;i<todo.length;i+=20){
+    var chunk=todo.slice(i,i+20);
+    var body={requests:chunk.map(function(e,k){return {id:String(k),method:"GET",url:"/me/messages/"+encodeURIComponent(e.id)+"/attachments?$select=id,name,contentType,size,isInline"};})};
+    try{
+      var r=await graph("/$batch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      (r.responses||[]).forEach(function(res){
+        var e=chunk[+res.id];if(!e)return;
+        if(res.status===200&&res.body&&res.body.value)e.pdf=res.body.value.filter(isPdf).map(function(a){return {id:a.id,n:a.name||"documento.pdf",s:a.size||0};});
+      });
+    }catch(x){if(x.login)throw x;}
+    S.progress="Cerco i PDF… "+Math.min(i+20,todo.length)+" di "+todo.length;renderSync();
+    if(i%100===0){renderList();renderSidebar();}
+  }
+}
+async function sync(full){
+  if(S.busy)return;S.busy=true;renderSync();
+  try{
+    if(!Object.keys(S.excluded).length)await loadExcludedFolders();
+    var nuove=await fetchEmails(full);
+    await fetchAttachmentNames();
+    COMPILED=null;saveCache();
+    S.lastSync=new Date().toISOString();
+    if(!full&&nuove)toast(nuove===1?"È arrivata 1 email nuova.":"Sono arrivate "+nuove+" email nuove.");
+  }catch(e){
+    if(e.login){S.busy=false;showLogin("La sessione Microsoft è scaduta: accedi di nuovo (di solito basta un clic).");return;}
+    toast(e.message,true);
+  }
+  S.busy=false;S.progress="";renderAll();
+}
+
+/* ---------------- apertura dei PDF (solo su richiesta, niente viene salvato) ---------------- */
+var curBlobUrl=null;
+async function openPdf(eid,aid,scarica){
+  var e=S.byId[eid];var p=e&&(e.pdf||[]).filter(function(x){return x.id===aid;})[0];if(!p)return;
+  var V=$("#viewer");
+  if(!scarica){V.innerHTML='<div class="vbar"><b class="grow ell">'+esc(p.n)+'</b><span class="muted small"><span class="spin"></span> Apro il PDF…</span><button type="button" id="vClose">✕ Chiudi</button></div><iframe title="PDF"></iframe>';V.classList.add("open");$("#vClose").onclick=closeViewer;}
+  else toast("Scarico "+p.n+"…");
+  try{
+    var blob=await graph("/me/messages/"+encodeURIComponent(eid)+"/attachments/"+encodeURIComponent(aid)+"/$value",{blob:true});
+    blob=new Blob([blob],{type:"application/pdf"});
+    if(curBlobUrl)URL.revokeObjectURL(curBlobUrl);
+    curBlobUrl=URL.createObjectURL(blob);
+    if(scarica){var a=document.createElement("a");a.href=curBlobUrl;a.download=p.n.replace(/[\\/:*?"<>|]/g,"_");document.body.appendChild(a);a.click();a.remove();return;}
+    V.querySelector(".vbar .muted").innerHTML='<a class="btn" id="vDl" href="'+curBlobUrl+'" download="'+esc(p.n)+'">⬇ Scarica</a>';
+    V.querySelector("iframe").src=curBlobUrl;
+  }catch(x){
+    if(x.login){closeViewer();showLogin("La sessione Microsoft è scaduta: accedi di nuovo.");return;}
+    closeViewer();toast("Non riesco ad aprire il PDF: "+x.message,true);
+  }
+}
+function closeViewer(){var V=$("#viewer");V.classList.remove("open");V.innerHTML="";if(curBlobUrl){URL.revokeObjectURL(curBlobUrl);curBlobUrl=null;}}
+
+/* ---------------- schermate ---------------- */
+function msLogo(){return '<span class="mslogo"><i style="background:#f25022"></i><i style="background:#7fba00"></i><i style="background:#00a4ef"></i><i style="background:#ffb900"></i></span>';}
+function copyBox(t){return '<div class="copy"><code>'+esc(t)+'</code><button type="button" data-copy="'+esc(t)+'">Copia</button></div>';}
+function wireCopy(root){root.querySelectorAll("[data-copy]").forEach(function(b){b.onclick=function(){var t=b.dataset.copy;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){toast("Copiato.");}).catch(function(){prompt("Copia questo testo:",t);});};});}
+
+function showSetup(msg){
+  var c=getCfg()||{};
+  $("#app").innerHTML='<div class="center"><div class="card2"><h1>Mail<span>PDF</span></h1>'+
+  '<p class="muted">Le email di lavoro di Outlook divise per categoria, con i PDF a portata di clic. Tutto resta tra il tuo browser e Microsoft.</p>'+
+  (msg?'<p class="err">'+esc(msg)+'</p>':'')+
+  '<h2>Configurazione (una volta sola, circa 3 minuti)</h2>'+
+  '<p class="small muted">Microsoft vuole sapere che questo sito può leggere la tua posta. Per questo serve una “registrazione” gratuita, fatta con il tuo account di lavoro.</p>'+
+  '<ol class="steps">'+
+  '<li>Apri <a href="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade" target="_blank" rel="noopener">Microsoft Entra › Registra un\'applicazione</a> e accedi con l\'email di lavoro.</li>'+
+  '<li>Nome: <b>MailPDF</b>. Lascia <b>“Solo account in questa directory organizzativa”</b>.</li>'+
+  '<li>In <b>URI di reindirizzamento</b> scegli <b>“Applicazione a pagina singola (SPA)”</b> e incolla:'+copyBox(redirectUri())+'Poi clicca <b>Registra</b>.</li>'+
+  '<li>Nella pagina che si apre copia i due codici qui sotto: <b>ID applicazione (client)</b> e <b>ID della directory (tenant)</b>.</li></ol>'+
+  '<label class="formrow">ID applicazione (client)<input id="cfgClient" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="'+esc(c.clientId||"")+'" autocomplete="off"></label>'+
+  '<label class="formrow">ID della directory (tenant)<input id="cfgTenant" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="'+esc(c.tenantId&&c.tenantId!=="organizations"?c.tenantId:"")+'" autocomplete="off"></label>'+
+  '<p><button type="button" class="primary big" id="cfgSave">Salva e accedi con Microsoft</button> <span class="err small" id="cfgErr"></span></p>'+
+  '<div class="note">Se Microsoft non ti lascia registrare l\'app, o al primo accesso chiede l\'<b>approvazione dell\'amministratore</b>, la tua azienda lo riserva al reparto IT: inoltra loro questa pagina.</div>'+
+  '</div></div>';
+  wireCopy($("#app"));
+  $("#cfgSave").onclick=function(){
+    var id=$("#cfgClient").value.trim(),tn=$("#cfgTenant").value.trim();
+    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)){$("#cfgErr").textContent="L'ID applicazione deve avere il formato xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.";return;}
+    if(tn&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tn)&&!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(tn)){$("#cfgErr").textContent="L'ID della directory non sembra corretto.";return;}
+    lsSet("mp_cfg",{clientId:id,tenantId:tn||"organizations"});
+    login(true);
+  };
+}
+function showLogin(msg){
+  $("#app").innerHTML='<div class="center"><div class="card2"><h1>Mail<span>PDF</span></h1>'+
+  '<p class="muted">Le tue email di lavoro divise per categoria, con i PDF a portata di clic.</p>'+
+  (msg?'<p class="'+(/scadut|inattivit/.test(msg)?"muted":"err")+'">'+esc(msg)+'</p>':'')+
+  '<button type="button" class="primary msbtn" id="doLogin">'+msLogo()+' Accedi con Microsoft</button>'+
+  '<p class="muted small">Si apre la pagina di accesso ufficiale di Microsoft. La password la scrivi solo lì: questo sito non la vede mai.</p>'+
+  '<div class="note">🔒 I PDF non vengono salvati da nessuna parte: si aprono solo quando ci clicchi, direttamente da Outlook. Chiudendo il browser, o dopo 30 minuti di inattività, MailPDF si blocca.</div>'+
+  '<p class="small"><a href="#" id="chCfg">Cambia app Microsoft</a></p></div></div>';
+  $("#doLogin").onclick=function(){login(!lsGet("mp_hint",""));};
+  $("#chCfg").onclick=function(e){e.preventDefault();showSetup();};
+}
+function showApp(){
+  $("#app").innerHTML='<header><div class="logo">Mail<span>PDF</span></div>'+
+  '<input id="search" type="search" placeholder="Cerca email, mittenti, PDF…">'+
+  '<div class="spacer"></div><div id="sync"></div>'+
+  '<button id="syncBtn" title="Controlla subito le nuove email">↻<span class="lbl"> Aggiorna</span></button>'+
+  '<button id="settingsBtn" title="Impostazioni">⚙<span class="lbl"> Impostazioni</span></button></header>'+
+  '<div class="layout"><aside id="cats"></aside><main><div class="toolbar">'+
+  '<div class="tabs"><button data-tab="email" class="on">Email</button><button data-tab="pdf">PDF</button></div>'+
+  '<select id="catSelect"></select><label class="chk" id="onlyPdfWrap"><input type="checkbox" id="onlyPdf"> Solo con PDF</label>'+
+  '<span id="count" class="muted small"></span></div><div id="list"></div></main>'+
+  '<section id="detail"><div class="empty">Seleziona un\'email per vedere i dettagli e i PDF allegati.</div></section></div>';
+  $("#cats").onclick=function(e){var c=e.target.closest(".cat");if(!c)return;S.cat=c.dataset.cat;S.shown=100;renderSidebar();renderList();};
+  $("#catSelect").onchange=function(e){S.cat=e.target.value;S.shown=100;renderSidebar();renderList();};
+  document.querySelector(".tabs").onclick=function(e){var b=e.target.closest("button");if(!b)return;S.tab=b.dataset.tab;S.shown=100;document.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x===b);});renderSidebar();renderList();};
+  $("#onlyPdf").onchange=function(e){S.onlyPdf=e.target.checked;S.shown=100;renderList();};
+  var st0;$("#search").oninput=function(e){clearTimeout(st0);st0=setTimeout(function(){S.q=e.target.value.trim();S.shown=100;renderList();},200);};
+  $("#list").onclick=function(e){
+    var b=e.target.closest("[data-open]");if(b){openPdf(b.dataset.e,b.dataset.open,false);return;}
+    b=e.target.closest("[data-dl]");if(b){openPdf(b.dataset.e,b.dataset.dl,true);return;}
+    if(e.target.closest("a,button"))return;
+    var r=e.target.closest("[data-id]");if(r)openEmail(r.dataset.id);
+  };
+  $("#syncBtn").onclick=function(){sync(false);};
+  $("#settingsBtn").onclick=openSettings;
+  renderAll();
+}
+
+/* ---------------- rendering ---------------- */
+function catOf(e){return categorize(e);}
+function filtered(){
+  var q=S.q.toLowerCase();
+  return S.emails.filter(function(e){
+    if(S.cat&&catOf(e)!==S.cat)return false;
+    var np=(e.pdf||[]).length;
+    if(S.tab==="email"&&S.onlyPdf&&!np)return false;
+    if(S.tab==="pdf"&&!np)return false;
+    if(q){var hay=(e.s+" "+e.fn+" "+e.fa+" "+e.p+" "+(e.pdf||[]).map(function(p){return p.n;}).join(" ")).toLowerCase();if(hay.indexOf(q)<0)return false;}
+    return true;
+  });
+}
+function renderAll(){if(!$("#cats"))return;renderSidebar();renderSync();renderList();}
+function renderSidebar(){
+  if(!$("#cats"))return;
+  var isE=S.tab==="email",cnt={},tot=0;
+  S.emails.forEach(function(e){var c=catOf(e),k=isE?1:(e.pdf||[]).length;cnt[c]=(cnt[c]||0)+k;tot+=k;});
+  var names=categoryNames();
+  var h='<h4>Categorie</h4><div class="cat '+(S.cat===""?"on":"")+'" data-cat=""><span class="dot" style="background:var(--ink)"></span>Tutte<span class="cnt">'+tot+'</span></div>';
+  names.forEach(function(n){h+='<div class="cat '+(S.cat===n?"on":"")+'" data-cat="'+esc(n)+'"><span class="dot" style="background:'+color(n)+'"></span><span>'+esc(n)+'</span><span class="cnt">'+(cnt[n]||"")+'</span></div>';});
+  h+='<h4>Account</h4><div class="who ell" title="'+esc(S.me?S.me.mail:"")+'">'+msLogo()+' '+esc(S.me?S.me.mail:"")+'</div>';
+  $("#cats").innerHTML=h;
+  $("#catSelect").innerHTML='<option value="">Tutte le categorie</option>'+names.map(function(n){return '<option value="'+esc(n)+'" '+(S.cat===n?"selected":"")+'>'+esc(n)+' ('+(cnt[n]||0)+')</option>';}).join("");
+}
+function renderSync(){
+  var el=$("#sync");if(!el)return;
+  if(S.busy)el.innerHTML='<span class="spin"></span> '+esc(S.progress||"Controllo le email…");
+  else el.textContent=S.lastSync?"Aggiornato alle "+fmtDate(S.lastSync):"";
+  $("#syncBtn").disabled=S.busy;
+}
+function more(n){return n>S.shown?'<button class="more" id="more" type="button">Mostra altri ('+(n-S.shown)+')</button>':"";}
+function renderList(){
+  var L=$("#list");if(!L)return;
+  $("#onlyPdfWrap").style.display=S.tab==="email"?"":"none";
+  var list=filtered();
+  if(!S.emails.length){$("#count").textContent="";L.innerHTML='<div class="empty"><b>'+(S.busy?'<span class="spin"></span> Carico le email da Outlook…':'Nessuna email nel periodo scelto')+'</b>'+(S.busy?'La prima volta può volerci un minuto.':'Puoi allargare il periodo nelle impostazioni.')+'</div>';return;}
+  if(S.tab==="email"){
+    $("#count").textContent=list.length+" email";
+    if(!list.length){L.innerHTML='<div class="empty"><b>Nessun risultato</b>'+(S.q?"Prova con altre parole.":"Qui non c'è ancora niente.")+'</div>';return;}
+    L.innerHTML=list.slice(0,S.shown).map(function(e){var np=(e.pdf||[]).length;return '<div class="row '+(S.sel===e.id?"on":"")+'" data-id="'+esc(e.id)+'"><div class="from">'+esc(e.fn||e.fa)+'</div><div class="date">'+fmtDate(e.d)+'</div><div class="subj">'+esc(e.s)+'</div><div class="meta">'+(np?'<span class="clip">📎 '+np+' PDF</span>':(e.a&&e.pdf===null?'<span class="muted small">📎…</span>':''))+chip(catOf(e))+'</div><div class="snip">'+esc(e.p)+'</div></div>';}).join("")+more(list.length);
+  }else{
+    var items=[];list.forEach(function(e){(e.pdf||[]).forEach(function(p){items.push({p:p,e:e});});});
+    $("#count").textContent=items.length+" PDF";
+    if(!items.length){L.innerHTML='<div class="empty"><b>Nessun PDF</b>'+(S.busy?"Sto ancora cercando gli allegati…":"")+'</div>';return;}
+    L.innerHTML='<div class="grid">'+items.slice(0,S.shown).map(function(x){var p=x.p,e=x.e;return '<div class="card" data-id="'+esc(e.id)+'"><div class="pdficon">PDF</div><div class="cbody"><div class="fname" title="'+esc(p.n)+'">'+esc(p.n)+'</div><div class="muted small ell">'+esc(e.fn||e.fa)+' · '+fmtDate(e.d)+' · '+fmtSize(p.s)+'</div><div class="cact">'+chip(catOf(e))+'<button type="button" data-e="'+esc(e.id)+'" data-open="'+esc(p.id)+'">Apri</button><button type="button" data-e="'+esc(e.id)+'" data-dl="'+esc(p.id)+'">Scarica</button></div></div></div>';}).join("")+'</div>'+more(items.length);
+  }
+  var m=$("#more");if(m)m.onclick=function(){S.shown+=100;renderList();};
+}
+function catOptions(cur){var n=categoryNames();if(cur&&n.indexOf(cur)<0)n.push(cur);return n.map(function(x){return '<option '+(x===cur?"selected":"")+'>'+esc(x)+'</option>';}).join("")+'<option value="__new">+ Nuova categoria…</option><option value="__auto">↺ Automatica (regole)</option>';}
+function openEmail(id){
+  var e=S.byId[id];if(!e)return;S.sel=id;
+  document.querySelectorAll(".row").forEach(function(r){r.classList.toggle("on",r.dataset.id===id);});
+  var d=$("#detail"),cur=catOf(e),manual=!!lsGet("mp_manual",{})[id];
+  d.innerHTML='<button class="close" id="closeDetail" type="button" title="Chiudi">✕</button><h2>'+esc(e.s)+'</h2>'+
+  '<div>'+esc(e.fn)+' <span class="muted">&lt;'+esc(e.fa)+'&gt;</span></div>'+
+  '<div class="muted small">'+fmtFull(e.d)+(e.w?' · <a href="'+esc(e.w)+'" target="_blank" rel="noopener">Apri in Outlook</a>':'')+'</div>'+
+  '<label class="field">Categoria <select id="emailCat">'+catOptions(cur)+'</select></label>'+
+  (manual?'<div class="muted small" style="margin-top:6px">Categoria scelta da te.</div>':'')+
+  '<h3>PDF allegati ('+(e.pdf?e.pdf.length:"…")+')</h3>'+
+  (e.pdf===null?'<div class="muted"><span class="spin"></span> Cerco gli allegati…</div>':e.pdf.length?e.pdf.map(function(p){return '<div class="pdfline"><div class="pdficon sm">PDF</div><div class="grow"><div class="fname" title="'+esc(p.n)+'">'+esc(p.n)+'</div><div class="muted small">'+fmtSize(p.s)+'</div></div><button type="button" data-e="'+esc(e.id)+'" data-open="'+esc(p.id)+'">Apri</button><button type="button" data-e="'+esc(e.id)+'" data-dl="'+esc(p.id)+'" title="Scarica">⬇</button></div>';}).join(""):'<div class="muted">Nessun PDF in questa email.</div>')+
+  '<h3>Anteprima</h3><div class="snipfull">'+esc(e.p||"(vuota)")+'</div>';
+  d.classList.add("open");
+  d.onclick=function(ev){var b=ev.target.closest("[data-open]");if(b){openPdf(b.dataset.e,b.dataset.open,false);return;}b=ev.target.closest("[data-dl]");if(b)openPdf(b.dataset.e,b.dataset.dl,true);};
+  $("#emailCat").onchange=function(ev){
+    var v=ev.target.value,man=lsGet("mp_manual",{});
+    if(v==="__new"){v=(prompt("Nome della nuova categoria:")||"").trim().slice(0,60);if(!v){ev.target.value=cur;return;}}
+    if(v==="__auto")delete man[id];else man[id]=v;
+    lsSet("mp_manual",man);renderSidebar();renderList();openEmail(id);toast(v==="__auto"?"Categoria automatica ripristinata.":"Spostata in “"+v+"”.");
+  };
+  $("#closeDetail").onclick=function(){d.classList.remove("open");S.sel=null;document.querySelectorAll(".row.on").forEach(function(r){r.classList.remove("on");});d.innerHTML='<div class="empty">Seleziona un\'email per vedere i dettagli e i PDF allegati.</div>';};
+}
+function ruleRow(r){return '<tr><td><input data-k="cat" value="'+esc(r.cat)+'"></td><td><select data-k="campo">'+Object.keys(CAMPI).map(function(k){return '<option value="'+k+'" '+(r.campo===k?"selected":"")+'>'+CAMPI[k]+'</option>';}).join("")+'</select></td><td><input data-k="parole" value="'+esc(r.parole)+'"></td><td><button type="button" data-del title="Elimina">✕</button></td></tr>';}
+function openSettings(){
+  var st=settings(),M=$("#modal");
+  M.innerHTML='<div class="mbox"><button class="close" type="button" data-close title="Chiudi">✕</button><h2>Impostazioni</h2>'+
+  '<section><h3>Account</h3><p>'+msLogo()+' <b>'+esc(S.me?S.me.mail:"")+'</b></p><p><button type="button" id="logoutBtn">Esci e cancella i dati da questo PC</button></p></section>'+
+  '<section><h3>Quali email mostrare</h3><select id="period">'+PERIODI.map(function(p){return '<option value="'+p[0]+'" '+(st.mesi===p[0]?"selected":"")+'>'+p[1]+'</option>';}).join("")+'</select> '+
+  '<label class="chk" style="display:inline-flex;margin-left:12px"><input type="checkbox" id="ricorda" '+(st.ricorda?"checked":"")+'> Ricorda l\'elenco su questo PC (apertura più veloce, meno riservato)</label>'+
+  '<p class="muted small">Viene ricordato solo l\'elenco (oggetto, mittente, data). I PDF non vengono mai salvati: si aprono da Outlook quando ci clicchi. Sono escluse le cartelle Posta inviata, Eliminata e Indesiderata.</p></section>'+
+  '<section><h3>Regole delle categorie</h3><p class="muted small">Si leggono dall\'alto: vince la prima regola che trova una delle parole chiave (separate da virgola). Le email che non corrispondono a nessuna regola vanno in “Altro”.</p>'+
+  '<table class="rules"><thead><tr><th style="width:24%">Categoria</th><th style="width:24%">Dove cerca</th><th>Parole chiave</th><th></th></tr></thead><tbody id="rulesBody">'+getRules().map(ruleRow).join("")+'</tbody></table>'+
+  '<p><button type="button" id="addRule">+ Aggiungi regola in cima</button> <button type="button" id="resetRules">Ripristina regole iniziali</button></p>'+
+  '<p><button type="button" class="primary" id="saveRules">Salva regole</button></p></section>'+
+  '<section><h3>App Microsoft</h3><p class="muted small">ID applicazione: <code>'+esc((getCfg()||{}).clientId||"")+'</code></p><button type="button" id="chCfg2">Cambia app Microsoft</button></section></div>';
+  M.classList.add("open");
+  M.querySelector("[data-close]").onclick=function(){M.classList.remove("open");};
+  $("#logoutBtn").onclick=function(){if(confirm("Uscire da MailPDF? L'elenco salvato su questo PC verrà cancellato."))logout();};
+  $("#period").onchange=function(e){var s=settings();s.mesi=+e.target.value;lsSet("mp_set",s);M.classList.remove("open");sync(true);};
+  $("#ricorda").onchange=function(e){var s=settings();s.ricorda=e.target.checked;lsSet("mp_set",s);saveCache();toast(s.ricorda?"L'elenco verrà ricordato su questo PC.":"L'elenco non verrà più salvato su questo PC.");};
+  $("#rulesBody").onclick=function(e){if(e.target.closest("[data-del]"))e.target.closest("tr").remove();};
+  $("#addRule").onclick=function(){$("#rulesBody").insertAdjacentHTML("afterbegin",ruleRow({cat:"",campo:"intestazione",parole:""}));$("#rulesBody input").focus();};
+  $("#resetRules").onclick=function(){if(!confirm("Ripristinare le regole iniziali?"))return;lsDel("mp_rules");COMPILED=null;M.classList.remove("open");renderAll();toast("Regole ripristinate.");};
+  $("#saveRules").onclick=function(){
+    var rules=[].map.call(document.querySelectorAll("#rulesBody tr"),function(tr){return {cat:tr.querySelector('[data-k=cat]').value.trim().slice(0,60),campo:tr.querySelector('[data-k=campo]').value,parole:tr.querySelector('[data-k=parole]').value.trim()};}).filter(function(r){return r.cat&&r.parole;});
+    lsSet("mp_rules",rules);COMPILED=null;M.classList.remove("open");renderAll();toast("Regole salvate: email riordinate.");
+  };
+  $("#chCfg2").onclick=function(){M.classList.remove("open");showSetup();};
+}
+$("#modal").onclick=function(e){if(e.target.id==="modal")e.target.classList.remove("open");};
+document.addEventListener("keydown",function(e){if(e.key==="Escape"){$("#modal").classList.remove("open");closeViewer();}});
+
+/* ---------------- avvio ---------------- */
+async function start(){
+  readHashCfg();
+  if(!window.crypto||!crypto.subtle){$("#app").innerHTML='<div class="center"><div class="card2"><h1>Mail<span>PDF</span></h1><p class="err">Apri questo sito con un browser aggiornato (Edge o Chrome) e da un indirizzo https.</p></div></div>';return;}
+  if(!getCfg()){showSetup();return;}
+  var red=await handleRedirect();
+  if(red&&red.error){showLogin(friendlyAuthError(red.error,red.desc));return;}
+  if(!getTok()){showLogin();return;}
+  $("#app").innerHTML='<div class="center"><div class="card2"><h1>Mail<span>PDF</span></h1><p class="muted"><span class="spin"></span> Mi collego a Outlook…</p></div></div>';
+  try{
+    var me=await graph("/me?$select=id,displayName,mail,userPrincipalName");
+    S.me={id:me.id,name:me.displayName||"",mail:String(me.mail||me.userPrincipalName||"").toLowerCase()};
+    lsSet("mp_hint",S.me.mail);
+  }catch(e){
+    if(e.login){showLogin("La sessione Microsoft è scaduta: accedi di nuovo (di solito basta un clic).");return;}
+    showLogin(e.message);return;
+  }
+  loadCache();
+  showApp();
+  sync(!S.emails.length);
+  setInterval(function(){if(!S.busy&&document.visibilityState==="visible")sync(false);},5*60*1000);
+  var last=Date.now();["click","keydown","scroll","mousemove"].forEach(function(ev){document.addEventListener(ev,function(){last=Date.now();},{passive:true});});
+  setInterval(function(){if(Date.now()-last>30*60*1000&&getTok()){ssDel("mp_tok");closeViewer();$("#modal").classList.remove("open");S.emails=[];S.byId={};showLogin("Per sicurezza MailPDF si è bloccato dopo 30 minuti di inattività.");}},60*1000);
+}
+start();
+</script>
+</body>
+</html>
